@@ -8,7 +8,12 @@
 
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
-mount -t devtmpfs devtmpfs /dev 2>/dev/null
+if ! mount -t devtmpfs devtmpfs /dev 2>/dev/null; then
+	# Kernels without devtmpfs: let busybox mdev create the nodes
+	mount -t tmpfs -o mode=0755 tmpfs /dev
+	echo /bin/mdev > /proc/sys/kernel/hotplug
+	mdev -s
+fi
 mkdir -p /dev/pts /run /sysroot
 mount -t devpts devpts /dev/pts
 mount -t tmpfs tmpfs /run
