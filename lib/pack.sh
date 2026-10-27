@@ -30,11 +30,13 @@ cmd_pack() {
 		if [ -f "$OUT/rootfs.img" ]; then
 			log "sparse + lz4 rootfs for Odin (this takes a few minutes)"
 			python3 "$DMB_TOP/tools/sparse.py" pack "$OUT/rootfs.img" "$OUT/odin-src/rootfs.simg"
-			lz4 -q -f -B6 --content-size "$OUT/odin-src/rootfs.simg" \
-				"$OUT/odin-src/$DEVICE_ROOT_PARTLABEL.img.lz4"
+			# Odin maps files to partitions by the file names in the PIT
+			local name="${DEVICE_ODIN_ROOTFS_NAME:-$DEVICE_ROOT_PARTLABEL.img.ext4}"
+			lz4 -q -f -B6 --content-size "$OUT/odin-src/rootfs.simg" "$OUT/odin-src/$name.lz4"
 			rm "$OUT/odin-src/rootfs.simg"
-			local files=(boot.img "$DEVICE_ROOT_PARTLABEL.img.lz4")
+			local files=(boot.img)
 			[ -f "$OUT/odin-src/dtbo.img" ] && files+=(dtbo.img)
+			files+=("$name.lz4")
 			odin_tar "dmb-$DEVICE-full" "${files[@]}"
 		fi
 		rm -rf "$OUT/odin-src"
