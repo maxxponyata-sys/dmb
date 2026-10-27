@@ -21,6 +21,21 @@ cmd_pack() {
 		if [ -f "$DEVICE_DIR/dtbo.py" ]; then
 			python3 "$DEVICE_DIR/dtbo.py" "$OUT/odin-src/dtbo.img"
 			odin_tar "dmb-$DEVICE-empty-dtbo" dtbo.img
+			# The bootloader overlays dtbo onto every DTB it boots, so the
+			# mainline kernel needs both: one file for Odin's AP slot
+			odin_tar "dmb-$DEVICE-boot-dtbo" boot.img dtbo.img
+		fi
+		# Everything in one AP file: the rootfs goes to the root partition
+		# as a sparse, lz4-compressed image, the way Samsung ships userdata
+		if [ -f "$OUT/rootfs.img" ]; then
+			log "sparse + lz4 rootfs for Odin (this takes a few minutes)"
+			python3 "$DMB_TOP/tools/sparse.py" pack "$OUT/rootfs.img" "$OUT/odin-src/rootfs.simg"
+			lz4 -q -f -B6 --content-size "$OUT/odin-src/rootfs.simg" \
+				"$OUT/odin-src/$DEVICE_ROOT_PARTLABEL.img.lz4"
+			rm "$OUT/odin-src/rootfs.simg"
+			local files=(boot.img "$DEVICE_ROOT_PARTLABEL.img.lz4")
+			[ -f "$OUT/odin-src/dtbo.img" ] && files+=(dtbo.img)
+			odin_tar "dmb-$DEVICE-full" "${files[@]}"
 		fi
 		rm -rf "$OUT/odin-src"
 		;;

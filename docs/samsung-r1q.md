@@ -35,10 +35,12 @@
 - Стоковая прошивка вашего региона (`A805F…`, например через SamFw или Frija) — путь назад.
 - Ваш OrangeFox для r1q в разделе recovery и `adb` (у вас `Desktop\platform-tools`).
 - PuTTY (уже установлен).
-- Файлы из `work/out/samsung-r1q/` после `./dmb build`:
-  - `dmb-samsung-r1q-boot.tar.md5` — boot.img для Odin
-  - `rootfs.img` — Debian (этап 2)
-  - `dmb-samsung-r1q-empty-dtbo.tar.md5` — запасной вариант, только если понадобится (см. ниже)
+- Файлы из `work/out/samsung-r1q/` после `./dmb build` (все для слота **AP** в Odin):
+  - `dmb-samsung-r1q-boot-dtbo.tar.md5` — boot.img + пустой dtbo: тест ядра, данные не трогает (шаг 1)
+  - `dmb-samsung-r1q-full.tar.md5` — boot.img + пустой dtbo + Debian в `userdata` (шаг 2, **стирает Android**)
+  - `dmb-samsung-r1q-boot.tar.md5` — только boot.img, для обновления ядра поверх установленного Debian
+  - `rootfs.img` — тот же Debian для установки через `adb` вместо Odin
+  - `restore-lineage-dtbo.tar.md5` — вернуть dtbo от LineageOS (чтобы снова грузился Android)
 
 Из WSL файлы видны в Windows по пути `\\wsl.localhost\Ubuntu\home\maxim\dmb\work\out\samsung-r1q\`.
 
@@ -59,11 +61,13 @@
 3. Если ставили LineageOS/OrangeFox по прошлым шагам, отключённый `vbmeta` уже стоит. Если телефон на стоке — сначала нужен отключённый vbmeta (ваш `r1q-dl/lineage/vbmeta.img` с флагами 3), иначе загрузчик не примет чужой boot.img.
 4. В OrangeFox: **Backup → boot, dtbo, EFS** (EFS — это IMEI, храните копию отдельно на ПК).
 
-## Шаг 1. Тест загрузки ядра (Android не трогается)
+## Шаг 1. Тест загрузки ядра (данные Android не трогаются)
 
 boot.img ищет Debian в `userdata`. Там пока Android, поэтому initramfs смотрит туда **только для чтения**, ничего не меняет и открывает отладочную консоль.
 
-1. Download-режим, Odin → **AP** = `dmb-samsung-r1q-boot.tar.md5`, Options: Auto Reboot включён, остальное выключено → **Start**.
+Загрузчик A80 при каждой загрузке накладывает оверлей из раздела `dtbo` на DTB ядра (в его логе: `Apply Overlay`, `dtbo_idx=8`). Стоковый оверлей рассчитан на downstream-ядро и на mainline-DTB не накладывается — телефон сразу уходит в Download. Поэтому вместе с boot.img прошивается **пустой dtbo**. OrangeFox с ним работает как раньше (у recovery свой dtbo внутри образа). Android не загрузится, пока не вернёте `restore-lineage-dtbo.tar.md5` и boot из копии.
+
+1. Download-режим, Odin → **AP** = `dmb-samsung-r1q-boot-dtbo.tar.md5`, Options: Auto Reboot включён, Re-Partition выключен → **Start**.
 2. Телефон перезагрузится: логотип Samsung и предупреждение о разблокировке, затем на экране должны пойти строки ядра и сообщения `dmb: ...`, в конце `debug shell: ... holds no dmb rootfs`.
 3. **Сфотографируйте экран** через 10 секунд и через минуту.
 4. Не отключая кабель от ПК, откройте «Диспетчер устройств»:
@@ -80,19 +84,23 @@ boot.img ищет Debian в `userdata`. Там пока Android, поэтому 
    cat /sys/class/graphics/fb0/virtual_size
    ```
    Вместо COM-порта можно PuTTY → Telnet → `172.16.42.1`.
-7. Вернуть Android: принудительная перезагрузка в recovery → OrangeFox → Restore → boot (из шага 0).
+7. Вернуть Android: Odin → AP = `restore-lineage-dtbo.tar.md5`, затем OrangeFox → Restore → boot (из шага 0).
 
 ### Если что-то пошло не так
 
 | Что видно | Что делать |
 |---|---|
-| Сразу снова Download / надпись про dtbo / петля логотипа | Загрузчик не смог наложить стоковый dtbo на mainline-DTB. Прошейте в Odin **AP** = `dmb-samsung-r1q-empty-dtbo.tar.md5`, потом снова boot. Android при этом не загрузится, пока не вернёте dtbo из копии. |
+| Сразу снова Download, хотя прошит boot-dtbo | Сфотографируйте экран Download. Затем прошейте `dmb-test-lineage-kernel.tar.md5` (ядро LineageOS + dmb initramfs): если и он уходит в Download, виновата упаковка boot.img, если нет — mainline-ядро или DTB. |
 | Чёрный экран, телефон висит | Подождите минуту, принудительно перезагрузитесь **сразу в recovery**. В OrangeFox через ПК: `adb pull /sys/fs/pstore C:\Users\maxim\Desktop\a80-pstore` и пришлите папку: там лог ядра с прошлой загрузки. |
 | Экран со строками, но COM-порта нет | Сфотографируйте экран: строки `dmb:` покажут, на каком шаге застряло. |
 
 ## Шаг 2. Установка Debian (стирает Android)
 
-Только после удачного шага 1.
+Только после удачного шага 1. Два способа, результат одинаковый.
+
+**Через Odin (проще).** Download-режим, Odin → **AP** = `dmb-samsung-r1q-full.tar.md5` (≈500 МБ), Auto Reboot включён, Re-Partition выключен → **Start**. Внутри boot.img, пустой dtbo и `userdata.img.lz4`: Debian в формате Android sparse, как Samsung поставляет `userdata` в стоковых прошивках. Odin запишет его поверх раздела `userdata`, после перезагрузки сразу стартует Debian.
+
+**Через OrangeFox и adb.**
 
 1. Recovery (OrangeFox). Если OrangeFox спросит пароль — нажмите «Отмена».
 2. На ПК в `platform-tools`:
