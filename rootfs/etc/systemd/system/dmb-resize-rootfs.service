@@ -1,0 +1,11 @@
+[Unit]
+Description=Grow the root filesystem to fill its partition (first boot)
+ConditionPathExists=!/var/lib/dmb/rootfs-resized
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'resize2fs "$(findmnt -n -o SOURCE /)" && mkdir -p /var/lib/dmb && touch /var/lib/dmb/rootfs-resized'
+
+[Install]
+WantedBy=multi-user.target

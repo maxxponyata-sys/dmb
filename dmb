@@ -1,0 +1,107 @@
+#!/bin/bash
+# dmb - Debian Mobile Bootstrap
+# Builds a mainline kernel, a small initramfs, an Android boot image and a
+# Debian root filesystem for a phone described in devices/<name>/.
+set -euo pipefail
+
+. "$(dirname "$(readlink -f "$0")")/lib/common.sh"
+for f in "$DMB_TOP"/lib/*.sh; do
+	[ "$f" = "$DMB_TOP/lib/common.sh" ] || . "$f"
+done
+
+usage() {
+	cat <<EOF
+dmb - Debian Mobile Bootstrap
+
+usage: ./dmb <command> [args]
+
+  list                 devices dmb knows about
+  init <device>        select the device (saved in $DMB_CONFIG)
+  status               show the selected device and build settings
+  check                check that the host has the build tools
+  kernel               fetch + build the kernel, dtb and modules
+  initramfs            build the initramfs
+  bootimg              build boot.img (kernel + dtb + initramfs)
+  rootfs               build the Debian root filesystem (no root needed)
+  build                kernel + initramfs + bootimg + rootfs
+  pack                 make flashable files (Odin tar / fastboot images)
+  new-device <name>    start a new device from the template
+  clean [all]          remove build output (all: also downloads)
+
+Settings in $DMB_CONFIG: device=, DEBIAN_SUITE=, UI=, USERNAME=, PASSWORD=
+EOF
+}
+
+cmd_list() {
+	local d
+	for d in "$DMB_TOP"/devices/*/device.conf; do
+		[ -e "$d" ] || continue
+		case "$d" in */_template/*) continue ;; esac
+		(
+			device_defaults
+			. "$d"
+			printf '%-20s %-26s %-10s %s\n' "$(basename "$(dirname "$d")")" \
+				"$DEVICE_NAME" "$DEVICE_SOC" "$DEVICE_KERNEL"
+		)
+	done
+}
+
+cmd_init() {
+	[ -n "${1:-}" ] || die "usage: ./dmb init <device>"
+	[ -f "$DMB_TOP/devices/$1/device.conf" ] || die "unknown device '$1'"
+	mkdir -p "$(dirname "$DMB_CONFIG")"
+	if [ -f "$DMB_CONFIG" ]; then
+		sed -i '/^device=/d' "$DMB_CONFIG"
+	fi
+	echo "device=$1" >> "$DMB_CONFIG"
+	log "selected $1"
+}
+
+cmd_status() {
+	load_device
+	cat <<EOF
+device       $DEVICE ($DEVICE_NAME, $DEVICE_SOC)
+kernel       $DEVICE_KERNEL $KERNEL_TAG
+dtb          ${DEVICE_DTB:-none}
+debian       $DEBIAN_SUITE ($DEVICE_DEBIAN_ARCH), ui=$UI, user=$USERNAME
+flash        $DEVICE_FLASH_METHOD, rootfs on partition '$DEVICE_ROOT_PARTLABEL'
+output       $OUT
+EOF
+}
+
+cmd_check() { "$DMB_TOP/tools/check-host.sh"; }
+
+cmd_build() {
+	cmd_kernel
+	cmd_initramfs
+	cmd_bootimg
+	cmd_rootfs
+	cmd_pack
+}
+
+cmd_clean() {
+	if [ "${1:-}" = "all" ]; then
+		rm -rf "$DMB_WORK"
+	else
+		load_device
+		rm -rf "$KOUT" "$OUT" "$ROOTFS"
+	fi
+}
+
+cmd_new_device() {
+	local name="${1:-}"
+	[ -n "$name" ] || die "usage: ./dmb new-device <vendor-codename>"
+	[ ! -e "$DMB_TOP/devices/$name" ] || die "devices/$name already exists"
+	cp -r "$DMB_TOP/devices/_template" "$DMB_TOP/devices/$name"
+	log "created devices/$name; edit device.conf and add the DTS (docs/porting.md)"
+}
+
+cmd="${1:-}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+list|init|status|check|build|clean) "cmd_$cmd" "$@" ;;
+new-device) cmd_new_device "$@" ;;
+kernel|initramfs|bootimg|rootfs|pack) load_device; "cmd_$cmd" "$@" ;;
+""|-h|--help|help) usage ;;
+*) usage; exit 1 ;;
+esac

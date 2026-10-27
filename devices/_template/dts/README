@@ -1,0 +1,3 @@
+Put the device's .dts here (and any .dtsi it needs). dmb copies every file
+from this directory into the kernel tree's arch/arm64/boot/dts/<subdir>/
+before each build, so the DTS can live here until it is upstream.

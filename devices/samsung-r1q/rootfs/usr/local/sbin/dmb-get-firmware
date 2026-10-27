@@ -1,0 +1,39 @@
+#!/bin/sh
+# Copy the Samsung-signed firmware that cannot be redistributed from the
+# phone's own partitions into /lib/firmware, squashing the split
+# .mdt/.bNN files into the .mbn files the mainline kernel loads:
+#   vendor  (ext4): firmware/a615_zap.*  GPU zap shader, needed by freedreno
+#   apnhlos (vfat): image/{adsp,cdsp,modem}.*  DSPs, for later stages
+# Run once as root, then reboot.
+set -eu
+dst=/lib/firmware/qcom/sm7150/samsung/r1q
+mkdir -p $dst
+mounts=""
+cleanup() { for m in $mounts; do umount "$m"; rmdir "$m"; done; }
+trap cleanup EXIT
+
+mount_part() {
+	local m
+	[ -e "/dev/disk/by-partlabel/$1" ] || { echo "no partition '$1'" >&2; return 1; }
+	m=$(mktemp -d)
+	mount -o ro "/dev/disk/by-partlabel/$1" "$m"
+	mounts="$mounts $m"
+	echo "$m"
+}
+
+vendor=$(mount_part vendor)
+apnhlos=$(mount_part apnhlos)
+
+for fw in a615_zap adsp cdsp modem; do
+	src=""
+	for d in "$vendor/firmware" "$apnhlos/image"; do
+		[ -f "$d/$fw.mdt" ] && { src="$d/$fw.mdt"; break; }
+	done
+	if [ -n "$src" ]; then
+		pil-squasher "$dst/$fw.mbn" "$src"
+		echo "installed $dst/$fw.mbn (from $src)"
+	else
+		echo "skipped $fw (not found)"
+	fi
+done
+echo "done; reboot to load the GPU zap shader"

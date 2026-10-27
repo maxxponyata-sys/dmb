@@ -1,0 +1,12 @@
+[Unit]
+Description=dmb USB gadget (RNDIS network + serial console)
+After=systemd-modules-load.service
+Before=systemd-networkd.service serial-getty@ttyGS0.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/dmb-usb-gadget
+
+[Install]
+WantedBy=multi-user.target

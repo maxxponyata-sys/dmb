@@ -1,0 +1,32 @@
+#!/bin/sh
+# USB gadget for a running Debian: RNDIS network (phone 172.16.42.1, the PC
+# gets 172.16.42.2 by DHCP) and a serial console (COM port on the PC).
+set -eu
+g=/sys/kernel/config/usb_gadget/dmb
+[ -d $g ] && exit 0
+modprobe libcomposite 2>/dev/null || true
+mountpoint -q /sys/kernel/config || mount -t configfs configfs /sys/kernel/config
+
+mkdir -p $g
+echo 0x1d6b > $g/idVendor
+echo 0x0104 > $g/idProduct
+mkdir -p $g/strings/0x409
+echo dmb > $g/strings/0x409/manufacturer
+echo "$(cat /sys/firmware/devicetree/base/model | tr -d '\0') (Debian)" > $g/strings/0x409/product
+echo "dmb-$(cat /etc/hostname)" > $g/strings/0x409/serialnumber
+
+mkdir -p $g/configs/c.1/strings/0x409
+echo "rndis + serial" > $g/configs/c.1/strings/0x409/configuration
+
+echo 1 > $g/os_desc/use
+echo 0xcd > $g/os_desc/b_vendor_code
+echo MSFT100 > $g/os_desc/qw_sign
+mkdir -p $g/functions/rndis.usb0
+echo RNDIS > $g/functions/rndis.usb0/os_desc/interface.rndis/compatible_id
+echo 5162001 > $g/functions/rndis.usb0/os_desc/interface.rndis/sub_compatible_id
+ln -s $g/functions/rndis.usb0 $g/configs/c.1/
+ln -s $g/configs/c.1 $g/os_desc/
+mkdir -p $g/functions/acm.gs0
+ln -s $g/functions/acm.gs0 $g/configs/c.1/
+
+ls /sys/class/udc | head -n1 > $g/UDC

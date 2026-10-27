@@ -1,0 +1,48 @@
+#!/usr/bin/python3
+"""Join a Qualcomm split firmware (foo.mdt + foo.b00..bNN) into one .mbn.
+
+Same job as https://github.com/linux-msm/pil-squasher: the .mdt holds the
+ELF headers, each program header N is stored in foo.bNN and is placed at
+its p_offset in the output."""
+import os
+import struct
+import sys
+
+
+def main():
+    if len(sys.argv) != 3:
+        sys.exit("usage: pil-squasher OUT.mbn IN.mdt")
+    out_path, mdt_path = sys.argv[1], sys.argv[2]
+    mdt = open(mdt_path, "rb").read()
+    if mdt[:4] != b"\x7fELF":
+        sys.exit(f"{mdt_path}: not an ELF file")
+    is64 = mdt[4] == 2
+    if is64:
+        phoff, = struct.unpack_from("<Q", mdt, 0x20)
+        phentsize, phnum = struct.unpack_from("<HH", mdt, 0x36)
+    else:
+        phoff, = struct.unpack_from("<I", mdt, 0x1C)
+        phentsize, phnum = struct.unpack_from("<HH", mdt, 0x2A)
+
+    base = os.path.splitext(mdt_path)[0]
+    with open(out_path, "wb") as out:
+        out.write(mdt)
+        for i in range(phnum):
+            off = phoff + i * phentsize
+            if is64:
+                p_type, _, p_offset, _, _, p_filesz = struct.unpack_from("<IIQQQQ", mdt, off)
+            else:
+                p_type, p_offset, _, _, p_filesz = struct.unpack_from("<IIIII", mdt, off)
+            if p_filesz == 0:
+                continue
+            seg = f"{base}.b{i:02d}"
+            if not os.path.exists(seg):
+                # Segments already inside the .mdt (headers, hash table)
+                continue
+            data = open(seg, "rb").read()
+            out.seek(p_offset)
+            out.write(data[:p_filesz])
+
+
+if __name__ == "__main__":
+    main()
