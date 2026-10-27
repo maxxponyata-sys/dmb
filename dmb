@@ -99,9 +99,9 @@ cmd_new_device() {
 cmd="${1:-}"
 [ $# -gt 0 ] && shift
 case "$cmd" in
-list|init|status|check|build|clean) "cmd_$cmd" "$@" ;;
+list|init|status|check|clean) "cmd_$cmd" "$@" ;;
 new-device) cmd_new_device "$@" ;;
-kernel|initramfs|bootimg|rootfs|pack) load_device; "cmd_$cmd" "$@" ;;
+kernel|initramfs|bootimg|rootfs|pack|build) load_device; "cmd_$cmd" "$@" ;;
 ""|-h|--help|help) usage ;;
 *) usage; exit 1 ;;
 esac

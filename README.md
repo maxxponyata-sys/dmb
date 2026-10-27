@@ -26,10 +26,12 @@ A Linux host or WSL2 (tested on Ubuntu 26.04 in WSL2 on Windows 10):
 
 ```bash
 sudo apt install build-essential bc bison flex libssl-dev gcc-aarch64-linux-gnu \
-    device-tree-compiler mkbootimg cpio xz-utils e2fsprogs curl git perl uidmap qemu-user-binfmt
+    device-tree-compiler mkbootimg cpio xz-utils lz4 e2fsprogs curl git patch perl \
+    uidmap qemu-user-binfmt
 ```
 
-`./dmb check` lists anything missing. The root filesystem is built without
+`./dmb check` lists anything missing. e2fsprogs must be 1.47.1 or newer
+(`mke2fs -d` reads the rootfs tarball directly). The root filesystem is built without
 root through user namespaces (`uidmap` provides `newuidmap`); ARM64
 packages are configured through qemu binfmt.
 
