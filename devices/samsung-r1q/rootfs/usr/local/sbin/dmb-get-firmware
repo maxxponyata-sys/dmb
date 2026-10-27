@@ -2,27 +2,29 @@
 # Copy the Samsung-signed firmware that cannot be redistributed from the
 # phone's own partitions into /lib/firmware, squashing the split
 # .mdt/.bNN files into the .mbn files the mainline kernel loads:
-#   vendor  (ext4): firmware/a615_zap.*  GPU zap shader, needed by freedreno
-#   apnhlos (vfat): image/{adsp,cdsp,modem}.*  DSPs, for later stages
+#   vendor  (ext4): firmware/a615_zap.*   GPU zap shader, needed by freedreno
+#   apnhlos (vfat): image/{adsp,cdsp,modem}.*, image/wlanmdsp.mbn,
+#                   WCN3990 board data    DSPs and Wi-Fi (boot-wifi)
 # Run once as root, then reboot.
 set -eu
 dst=/lib/firmware/qcom/sm7150/samsung/r1q
-mkdir -p $dst
-mounts=""
-cleanup() { for m in $mounts; do umount "$m"; rmdir "$m"; done; }
+work=$(mktemp -d)
+vendor=$work/vendor
+apnhlos=$work/apnhlos
+
+cleanup() {
+	umount "$vendor" 2>/dev/null || true
+	umount "$apnhlos" 2>/dev/null || true
+	rm -rf "$work"
+}
 trap cleanup EXIT
 
-mount_part() {
-	local m
-	[ -e "/dev/disk/by-partlabel/$1" ] || { echo "no partition '$1'" >&2; return 1; }
-	m=$(mktemp -d)
-	mount -o ro "/dev/disk/by-partlabel/$1" "$m"
-	mounts="$mounts $m"
-	echo "$m"
-}
-
-vendor=$(mount_part vendor)
-apnhlos=$(mount_part apnhlos)
+for p in vendor apnhlos; do
+	[ -e "/dev/disk/by-partlabel/$p" ] || { echo "no partition '$p'"; exit 1; }
+	mkdir -p "$work/$p"
+	mount -o ro "/dev/disk/by-partlabel/$p" "$work/$p"
+done
+mkdir -p $dst
 
 for fw in a615_zap adsp cdsp modem; do
 	src=""
@@ -36,4 +38,28 @@ for fw in a615_zap adsp cdsp modem; do
 		echo "skipped $fw (not found)"
 	fi
 done
-echo "done; reboot to load the GPU zap shader"
+
+# WLAN firmware for the modem; tqftpserv hands it out from the modem's
+# firmware directory
+if [ -f "$apnhlos/image/wlanmdsp.mbn" ]; then
+	cp "$apnhlos/image/wlanmdsp.mbn" $dst/
+	echo "installed $dst/wlanmdsp.mbn"
+fi
+
+# Board data for ath10k: board-2.bin from firmware-atheros has no r1q
+# entry, so ath10k falls back to board.bin
+bd=""
+for f in "$apnhlos/image/bdwlan.bin" "$vendor/firmware/wlan/qca_cld/bdwlan.bin" \
+	"$apnhlos/image/bdwlan.b0c" "$apnhlos/image/bdwlan.elf"; do
+	[ -f "$f" ] && { bd="$f"; break; }
+done
+if [ -n "$bd" ]; then
+	mkdir -p /lib/firmware/ath10k/WCN3990/hw1.0
+	cp "$bd" /lib/firmware/ath10k/WCN3990/hw1.0/board.bin
+	echo "installed ath10k board.bin (from $bd)"
+else
+	echo "no WCN3990 board data found; these are the candidates:"
+	ls "$apnhlos/image" | grep -i -E "bd|wlan" || true
+fi
+
+echo "done; reboot to use them"

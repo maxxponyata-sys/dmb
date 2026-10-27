@@ -63,6 +63,25 @@ or a kernel with appended DTBs. Overlays reference their targets through
 Keep the first DTS small: framebuffer, storage, USB, buttons. Display
 panels, touch, Wi-Fi, audio and modem come later, one at a time.
 
+**Variants.** A DTS that includes the base one (`#include
+"socname-vendor-codename.dts"`) and adds hardware still being tested can
+be listed in `DEVICE_DTB_VARIANTS`: `DEVICE_DTB_VARIANTS="dsi"` builds
+`boot-dsi.img` from `<DEVICE_DTB>-dsi.dtb` next to `boot.img`, so the
+known-good image stays one flash away.
+
+**Drivers that aren't upstream.** New files go under
+`devices/<dev>/kernel/` with the kernel tree's layout (for example
+`kernel/drivers/gpu/drm/panel/panel-vendor-model.c`); changes to existing
+files (Kconfig, Makefile, other drivers) go to `devices/<dev>/patches/`
+as `-p1` patches, applied once each. Turn them on in
+`devices/<dev>/kernel.fragment`.
+
+**DSI panels.** A command or video mode panel's init sequence is in the
+vendor DTB as `qcom,mdss-dsi-on-command`: a list of `dtype last vc ack
+wait dlen payload` records; `tools/dsi-cmds.py panel.dts` prints them
+readably. Base a driver on an upstream panel of the same vendor and the
+same mode.
+
 ## 3. Flashing
 
 `DEVICE_FLASH_METHOD` is `fastboot` (most phones: `fastboot flash boot

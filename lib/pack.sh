@@ -26,6 +26,11 @@ cmd_pack() {
 		# stays out of the Odin files.
 		rm -rf "$OUT/odin-src"
 		mkdir -p "$OUT/odin-src"
+		local v
+		for v in $DEVICE_DTB_VARIANTS; do
+			cp "$OUT/boot-$v.img" "$OUT/odin-src/boot.img"
+			odin_tar "dmb-$DEVICE-boot-$v" boot.img
+		done
 		cp "$OUT/boot.img" "$OUT/odin-src/boot.img"
 		odin_tar "dmb-$DEVICE-boot" boot.img
 		# Everything else in one AP file: the rootfs goes to the root partition
@@ -37,7 +42,7 @@ cmd_pack() {
 			local name="${DEVICE_ODIN_ROOTFS_NAME:-$DEVICE_ROOT_PARTLABEL.img.ext4}"
 			lz4 -q -f -B6 --content-size "$OUT/odin-src/rootfs.simg" "$OUT/odin-src/$name.lz4"
 			rm "$OUT/odin-src/rootfs.simg"
-			odin_tar "dmb-$DEVICE-full" boot.img "$name.lz4"
+			odin_tar "dmb-$DEVICE-install" boot.img "$name.lz4"
 		fi
 		rm -rf "$OUT/odin-src"
 		;;

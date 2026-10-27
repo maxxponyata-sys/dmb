@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Samsung Galaxy A80 (r1q), stage 3: stage 2 (display, touch) plus the
+ * modem DSP and the WCN3990 Wi-Fi/Bluetooth it serves. Experimental.
+ *
+ * Needs the Samsung-signed modem.mbn and wlanmdsp.mbn copied from the
+ * phone by dmb-get-firmware, and rmtfs, pd-mapper and tqftpserv running
+ * (installed in the rootfs). Supplies follow the PM6150/PM6150L reference
+ * wiring, as on the Pixel 4a; the stock DT names the same rails.
+ */
+
+#include "sm7150-samsung-r1q-dsi.dts"
+
+/ {
+	model = "Samsung Galaxy A80 (Wi-Fi)";
+
+	aliases {
+		bluetooth0 = &bluetooth;
+		hsuart0 = &uart3;
+		wifi0 = &wifi;
+	};
+
+	reserved-memory {
+		/*
+		 * Stock allocates rmtfs dynamically (qcom,sharedmem-uio, 2 MiB);
+		 * mainline needs a fixed carveout. This range is free on r1q.
+		 */
+		rmtfs_mem: rmtfs@fde01000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0x0 0xfde01000 0x0 0x600000>;
+			no-map;
+
+			qcom,client-id = <1>;
+			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
+		};
+	};
+};
+
+&remoteproc_mpss {
+	firmware-name = "qcom/sm7150/samsung/r1q/modem.mbn";
+	status = "okay";
+};
+
+&wifi {
+	vdd-0.8-cx-mx-supply = <&vreg_l9a_0p8>;
+	vdd-1.8-xo-supply = <&vreg_l1c_1p8>;
+	vdd-1.3-rfa-supply = <&vreg_l2c_1p3>;
+	vdd-3.3-ch0-supply = <&vreg_l10c_3p3>;
+	vdd-3.3-ch1-supply = <&vreg_l11c_3p3>;
+
+	qcom,ath10k-calibration-variant = "samsung_r1q";
+
+	status = "okay";
+};
+
+/* UART3 sits on QUPv3 wrapper 0, enabled by the -dsi DTS for i2c7 */
+&qup_uart3_cts {
+	bias-pull-down;
+};
+
+&qup_uart3_rts {
+	drive-strength = <2>;
+	bias-disable;
+};
+
+&qup_uart3_tx {
+	drive-strength = <2>;
+	bias-disable;
+};
+
+&qup_uart3_rx {
+	bias-pull-up;
+};
+
+&tlmm {
+	qup_uart3_sleep: qup-uart3-sleep-state {
+		cts-pins {
+			pins = "gpio38";
+			function = "gpio";
+			bias-pull-down;
+		};
+
+		rts-pins {
+			pins = "gpio39";
+			function = "gpio";
+			bias-pull-down;
+		};
+
+		tx-pins {
+			pins = "gpio40";
+			function = "gpio";
+			bias-pull-up;
+		};
+
+		rx-pins {
+			pins = "gpio41";
+			function = "gpio";
+			bias-pull-up;
+		};
+	};
+};
+
+&uart3 {
+	/delete-property/interrupts;
+	interrupts-extended = <&intc GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>,
+			      <&tlmm 41 IRQ_TYPE_EDGE_FALLING>;
+
+	pinctrl-1 = <&qup_uart3_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	status = "okay";
+
+	bluetooth: bluetooth {
+		compatible = "qcom,wcn3990-bt";
+
+		vddio-supply = <&vreg_l10a_1p8>;
+		vddxo-supply = <&vreg_l1c_1p8>;
+		vddrf-supply = <&vreg_l2c_1p3>;
+		vddch0-supply = <&vreg_l10c_3p3>;
+		max-speed = <3200000>;
+	};
+};

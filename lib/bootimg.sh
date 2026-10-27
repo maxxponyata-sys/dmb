@@ -1,12 +1,13 @@
-# dmb bootimg: Android boot image from the kernel, DTB and initramfs.
+# dmb bootimg: Android boot images from the kernel, DTB and initramfs.
+# boot.img uses DEVICE_DTB; each name in DEVICE_DTB_VARIANTS adds
+# boot-<variant>.img built with <DEVICE_DTB>-<variant>.dtb.
 
-cmd_bootimg() {
-	local kernel="$OUT/$DEVICE_KERNEL_IMAGE" dtb="" args=()
-	[ -f "$kernel" ] || die "no kernel in $OUT; run ./dmb kernel"
-	[ -f "$OUT/initramfs.cpio.gz" ] || die "no initramfs; run ./dmb initramfs"
+bootimg_one() {
+	local variant="$1" kernel="$OUT/$DEVICE_KERNEL_IMAGE" dtb="" args=()
+	local out="$OUT/boot${variant:+-$variant}.img"
 
 	if [ -n "$DEVICE_DTB" ]; then
-		dtb="$OUT/$(basename "$DEVICE_DTB").dtb"
+		dtb="$OUT/$(basename "$DEVICE_DTB")${variant:+-$variant}.dtb"
 		[ -f "$dtb" ] || die "missing $dtb"
 	fi
 	if [ "$DEVICE_DTB_APPEND" = "true" ] && [ -n "$dtb" ]; then
@@ -34,6 +35,16 @@ cmd_bootimg() {
 		args+=(--dtb "$dtb")
 	fi
 
-	mkbootimg "${args[@]}" -o "$OUT/boot.img"
-	log "boot.img: $OUT/boot.img ($(du -h "$OUT/boot.img" | cut -f1))"
+	mkbootimg "${args[@]}" -o "$out"
+	rm -f "$OUT/kernel-dtb"
+	log "$(basename "$out"): $out ($(du -h "$out" | cut -f1))"
+}
+
+cmd_bootimg() {
+	[ -f "$OUT/$DEVICE_KERNEL_IMAGE" ] || die "no kernel in $OUT; run ./dmb kernel"
+	[ -f "$OUT/initramfs.cpio.gz" ] || die "no initramfs; run ./dmb initramfs"
+	local v
+	for v in "" $DEVICE_DTB_VARIANTS; do
+		bootimg_one "$v"
+	done
 }

@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Samsung Galaxy A80 (r1q), stage 2: the stage-1 board plus the display
+ * pipeline (MDSS/DPU, DSI0, AMS628RF05 panel) and the IST4050
+ * touchscreen. Kept as its own DTB so
+ * the stage-1 image, with the bootloader's framebuffer only, stays a
+ * known fallback.
+ *
+ * Panel wiring from the stock DTBO (ss_dsi_panel_S6E3FC2_AMS670TA01_FHD):
+ * reset TLMM 11, enable TLMM 69, TE TLMM 10, VDDIO L13A. ELVDD/ELVSS come
+ * from the PM6150L AMOLED block, left on by the bootloader.
+ */
+
+#include "sm7150-samsung-r1q.dts"
+
+/ {
+	model = "Samsung Galaxy A80 (display)";
+};
+
+&dispcc {
+	status = "okay";
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
+&i2c7 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	/* Stock: imagis,ist40xx-ts, AVDD from L18A, IRQ on TLMM 9 */
+	touchscreen@50 {
+		compatible = "imagis,ist4050";
+		reg = <0x50>;
+
+		interrupts-extended = <&tlmm 9 IRQ_TYPE_EDGE_FALLING>;
+
+		vdd-supply = <&vreg_l18a_3p0>;
+		vddio-supply = <&vreg_l13a_1p8>;
+
+		touchscreen-size-x = <1080>;
+		touchscreen-size-y = <2400>;
+
+		pinctrl-0 = <&ts_int_n>;
+		pinctrl-names = "default";
+	};
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l3c_1p23>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "samsung,ams628rf05";
+		reg = <0>;
+
+		vddio-supply = <&vreg_l13a_1p8>;
+		reset-gpios = <&tlmm 11 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&tlmm 69 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&panel_reset_n &panel_en &mdp_vsync_p>;
+		pinctrl-names = "default";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vreg_l4a_0p88>;
+	status = "okay";
+};
+
+&tlmm {
+	mdp_vsync_p: mdp-vsync-p-state {
+		pins = "gpio10";
+		function = "mdp_vsync";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	panel_reset_n: panel-reset-n-state {
+		pins = "gpio11";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	ts_int_n: ts-int-n-state {
+		pins = "gpio9";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	panel_en: panel-en-state {
+		pins = "gpio69";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+};

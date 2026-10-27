@@ -18,7 +18,7 @@ covered in [docs/porting.md](docs/porting.md).
 
 | Device | Folder | SoC | Kernel | Status |
 |---|---|---|---|---|
-| Samsung Galaxy A80 (SM-A805F) | `samsung-r1q` | SM7150 (Snapdragon 730G) | Linux 7.1 (sm7150-mainline) | Stage 1, not yet tested on hardware. See [docs/samsung-r1q.md](docs/samsung-r1q.md) (in Russian) |
+| Samsung Galaxy A80 (SM-A805F) | `samsung-r1q` | SM7150 (Snapdragon 730G) | Linux 7.1 (sm7150-mainline) | Stage 1 (boot, UFS, USB, GPU), stage 2 (DSI panel, touchscreen) and stage 3 (modem DSP, Wi-Fi, Bluetooth) built, not yet tested on hardware. See [docs/samsung-r1q.md](docs/samsung-r1q.md) (in Russian) |
 
 ## Requirements
 
@@ -74,10 +74,13 @@ dmb                  the command
 lib/                 build steps (kernel, initramfs, bootimg, rootfs, pack)
 kernels/<name>/      kernel source (git tag + commit) and base config
 kernels/dmb.fragment options every dmb kernel needs
-devices/<name>/      device.conf, DTS, kernel.fragment, extra rootfs files
+devices/<name>/      device.conf, DTS, kernel.fragment, extra rootfs files,
+                     kernel/ (new driver files) and patches/ for the kernel
 initramfs/init       the initramfs script
 rootfs/              files added to every Debian rootfs
-tools/               helpers (dtbo-dump.py splits and decompiles dtbo/DTB images)
+tools/               helpers: dtbo-dump.py splits and decompiles dtbo/DTB images,
+                     dsi-cmds.py decodes vendor panel init sequences,
+                     sparse.py packs Android sparse images
 ```
 
 ## License

@@ -1,0 +1,6 @@
+
+# --- samsung-r1q ---
+# Display panel (stage 2, only bound when the -dsi DTB is booted)
+CONFIG_DRM_PANEL_SAMSUNG_AMS628RF05=y
+# IST4050 touchscreen (imagis driver with the dmb IST40xx patch)
+CONFIG_TOUCHSCREEN_IMAGIS=m

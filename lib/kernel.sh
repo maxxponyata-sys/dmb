@@ -33,6 +33,24 @@ kernel_add_dts() {
 	done
 }
 
+# Drivers that are not upstream yet: devices/<dev>/kernel/ is copied over
+# the tree on every build, and patches from kernels/<k>/patches and
+# devices/<dev>/patches are applied once each (stamp files in the tree).
+kernel_add_files() {
+	if [ -d "$DEVICE_DIR/kernel" ]; then
+		cp -r "$DEVICE_DIR/kernel/." "$KSRC/"
+	fi
+	local p stamp
+	for p in "$KERNEL_DIR"/patches/*.patch "$DEVICE_DIR"/patches/*.patch; do
+		[ -e "$p" ] || continue
+		stamp="$KSRC/.dmb-applied-$(basename "$p")"
+		[ -f "$stamp" ] && continue
+		log "applying $(basename "$p")"
+		patch -d "$KSRC" -p1 --forward --quiet < "$p" || die "patch failed: $p"
+		touch "$stamp"
+	done
+}
+
 kernel_make() {
 	make -C "$KSRC" O="$KOUT" ARCH="$DEVICE_KERNEL_ARCH" \
 		CROSS_COMPILE="$DEVICE_CROSS_COMPILE" -j"$JOBS" \
@@ -51,6 +69,7 @@ kernel_config() {
 
 cmd_kernel() {
 	kernel_fetch
+	kernel_add_files
 	kernel_add_dts
 	kernel_config
 	log "building $DEVICE_KERNEL_IMAGE, dtbs and modules ($JOBS jobs)"
@@ -65,7 +84,10 @@ cmd_kernel() {
 	cp "$KOUT/arch/$DEVICE_KERNEL_ARCH/boot/$DEVICE_KERNEL_IMAGE" "$OUT/"
 	cp "$KOUT/.config" "$OUT/config-$KREL"
 	if [ -n "$DEVICE_DTB" ]; then
-		cp "$KOUT/arch/$DEVICE_KERNEL_ARCH/boot/dts/$DEVICE_DTB.dtb" "$OUT/"
+		local v
+		for v in "" $DEVICE_DTB_VARIANTS; do
+			cp "$KOUT/arch/$DEVICE_KERNEL_ARCH/boot/dts/$DEVICE_DTB${v:+-$v}.dtb" "$OUT/"
+		done
 	fi
 	log "kernel $KREL ready in $OUT"
 }

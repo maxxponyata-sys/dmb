@@ -1,0 +1,31 @@
+diff --git a/drivers/gpu/drm/panel/Kconfig b/drivers/gpu/drm/panel/Kconfig
+--- a/drivers/gpu/drm/panel/Kconfig
++++ b/drivers/gpu/drm/panel/Kconfig
+@@ -798,6 +798,16 @@
+ 	  Say Y or M here if you want to enable support for the
+ 	  Samsung AMS581VF01 FHD Plus (2340x1080@60Hz) CMD mode panel.
+ 
++config DRM_PANEL_SAMSUNG_AMS628RF05
++	tristate "Samsung AMS628RF05 panel"
++	depends on OF
++	depends on DRM_MIPI_DSI
++	depends on BACKLIGHT_CLASS_DEVICE
++	help
++	  Say Y here if you want to enable support for the Samsung AMS628RF05
++	  (S6E3FC2 DDIC) FHD Plus (2400x1080@60Hz) CMD mode panel, used in
++	  the Samsung Galaxy A80.
++
+ config DRM_PANEL_SAMSUNG_AMS639RQ08
+ 	tristate "Samsung AMS639RQ08 panel"
+ 	depends on OF
+diff --git a/drivers/gpu/drm/panel/Makefile b/drivers/gpu/drm/panel/Makefile
+--- a/drivers/gpu/drm/panel/Makefile
++++ b/drivers/gpu/drm/panel/Makefile
+@@ -79,6 +79,7 @@
+ obj-$(CONFIG_DRM_PANEL_RENESAS_R69328) += panel-renesas-r69328.o
+ obj-$(CONFIG_DRM_PANEL_RONBO_RB070D30) += panel-ronbo-rb070d30.o
+ obj-$(CONFIG_DRM_PANEL_SAMSUNG_AMS581VF01) += panel-samsung-ams581vf01.o
++obj-$(CONFIG_DRM_PANEL_SAMSUNG_AMS628RF05) += panel-samsung-ams628rf05.o
+ obj-$(CONFIG_DRM_PANEL_SAMSUNG_AMS639RQ08) += panel-samsung-ams639rq08.o
+ obj-$(CONFIG_DRM_PANEL_SAMSUNG_AMS667YR01) += panel-samsung-ams667yr01.o
+ obj-$(CONFIG_DRM_PANEL_SAMSUNG_ATNA33XC20) += panel-samsung-atna33xc20.o

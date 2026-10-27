@@ -4,21 +4,22 @@
 (дерево [sm7150-mainline](https://github.com/sm7150-mainline/linux)) и
 графикой freedreno (Mesa, Adreno 618).
 
-**Статус: этап 1, на железе ещё не проверялся.**
+**Статус: этапы 1–3 собраны, на железе ещё не проверялись.** Этап 3 (`boot-wifi`): DSP модема, Wi-Fi и Bluetooth WCN3990 — самый рискованный, пробовать последним.
 
 ## Что ожидается
 
-| Часть | Этап 1 (сейчас) | Как |
-|---|---|---|
-| Загрузка ядра 7.1 | ожидается | boot.img через Odin |
-| Экран | текстовая консоль | framebuffer, оставленный загрузчиком (simple-framebuffer, 1080×2400) |
-| Кнопки громкости и питания | ожидается | PM6150L GPIO 2, PM6150 PON |
-| Хранилище UFS | ожидается | Debian на разделе `userdata` |
-| USB | ожидается | только режим устройства: сеть RNDIS + COM-порт; SSH на 172.16.42.1 |
-| GPU Adreno 618 (freedreno, turnip) | ожидается после `dmb-get-firmware` | без вывода на экран, проверка через `eglinfo` / `vulkaninfo` |
-| Дисплей через DSI (msm DPU), яркость | нет | этап 2: драйвер панели AMS628RF05 (S6E3FC2) |
-| Сенсор (IST40xx) | нет | этап 2 |
-| Wi-Fi/Bluetooth (WCN3990), звук, модем, камеры, выдвижная камера, зарядка, датчики | нет | этап 3+ |
+| Часть | Этап 1 (`boot`) | Этап 2 (`boot-dsi`) | Как |
+|---|---|---|---|
+| Загрузка ядра 7.1 | ожидается | ожидается | boot.img через Odin, пустой dtbo из recovery |
+| Экран | текстовая консоль | msm DRM, настоящий DSI | этап 1: framebuffer от загрузчика (simple-framebuffer, 1080×2400); этап 2: драйвер панели AMS628RF05 (S6E3FC2), написан для dmb |
+| Яркость | нет | ожидается | DCS 0x51, 0–1023 |
+| Сенсор IST4050 | нет | ожидается | драйвер `imagis` + патч dmb для IST40xx |
+| Кнопки громкости и питания | ожидается | ожидается | PM6150L GPIO 2, PM6150 PON |
+| Хранилище UFS | ожидается | ожидается | Debian на разделе `userdata` |
+| USB | ожидается | ожидается | только режим устройства: сеть RNDIS + COM-порт; SSH на 172.16.42.1 |
+| GPU Adreno 618 (freedreno, turnip) | после `dmb-get-firmware`, без экрана | после `dmb-get-firmware`, на экране | `eglinfo` / `vulkaninfo` / `kmscube` |
+| Wi-Fi/Bluetooth (WCN3990) | нет | нет | этап 3 (`boot-wifi`): modem remoteproc + ath10k + hci_qca, прошивки с телефона |
+| Звук, сотовая связь, камеры, выдвижная камера, зарядка, датчики | нет | нет | дальше |
 
 ## Риски — прочитайте до прошивки
 
@@ -37,8 +38,10 @@
 - PuTTY (уже установлен).
 - Файлы из `work/out/samsung-r1q/` после `./dmb build`:
   - `dmb-samsung-r1q-boot.tar.md5` — Odin AP: boot.img (шаг 1, данные не трогает)
+  - `dmb-samsung-r1q-boot-dsi.tar.md5` — Odin AP: boot.img с дисплеем и сенсором (шаг 4, этап 2)
+  - `dmb-samsung-r1q-boot-wifi.tar.md5` — Odin AP: этап 2 + модем, Wi-Fi, Bluetooth (шаг 5, этап 3)
   - `dtbo-empty.img` — пустой dtbo, пишется **из OrangeFox через adb** (шаг 1)
-  - `dmb-samsung-r1q-full.tar.md5` — Odin AP: boot.img + Debian в `userdata` (шаг 2, **стирает Android**)
+  - `dmb-samsung-r1q-install.tar.md5` — Odin AP: boot.img + Debian в `userdata` (шаг 2, **стирает Android**)
   - `rootfs.img` — тот же Debian для установки через `adb` вместо Odin
   - `dtbo-lineage.img` — dtbo от LineageOS, чтобы снова грузился Android (лучше — ваша копия из OrangeFox)
 
@@ -106,7 +109,7 @@ boot.img ищет Debian в `userdata`. Там пока Android, поэтому 
 
 Только после удачного шага 1 (пустой dtbo уже стоит). Два способа, результат одинаковый.
 
-**Через Odin (проще).** Download-режим, Odin → **AP** = `dmb-samsung-r1q-full.tar.md5` (≈500 МБ), Auto Reboot включён, Re-Partition выключен → **Start**. Внутри boot.img и `userdata.img.ext4.lz4`: Debian в формате Android sparse, как Samsung поставляет `userdata` в стоковых прошивках. Odin запишет его поверх раздела `userdata`, после перезагрузки сразу стартует Debian. Если Odin и на нём напишет `FAIL! (Auth)` — используйте второй способ.
+**Через Odin (проще).** Download-режим, Odin → **AP** = `dmb-samsung-r1q-install.tar.md5` (≈500 МБ), Auto Reboot включён, Re-Partition выключен → **Start**. Внутри boot.img и `userdata.img.ext4.lz4`: Debian в формате Android sparse, как Samsung поставляет `userdata` в стоковых прошивках. Odin запишет его поверх раздела `userdata`, после перезагрузки сразу стартует Debian. Если Odin и на нём напишет `FAIL! (Auth)` — используйте второй способ.
 
 **Через OrangeFox и adb.**
 
@@ -133,6 +136,38 @@ vulkaninfo --summary
 ```
 
 Ожидается `FD618` в OpenGL ES и `Turnip Adreno (TM) 618` в Vulkan. Пришлите вывод.
+
+## Шаг 4. Дисплей и сенсор (этап 2, экспериментально)
+
+Только когда этап 1 работает. `dmb-samsung-r1q-boot-dsi.tar.md5` — то же ядро, но DTB с дисплейным трактом: MDSS/DPU, DSI0 и панель AMS628RF05 (драйвер `panel-samsung-ams628rf05`, последовательность включения из стокового DTB), плюс сенсор IST4050 на i2c7 (драйвер `imagis` с патчем dmb для IST40xx). Rootfs остаётся тем же, шьётся только boot.
+
+1. Download → Odin → **AP** = `dmb-samsung-r1q-boot-dsi.tar.md5` → **Start**.
+2. Что должно быть: экран на секунду гаснет (драйвер заново инициализирует панель), затем консоль продолжается уже через `msm` DRM. Сенсор появится как `Imagis capacitive touchscreen`.
+3. Пришлите (по SSH или COM-порту):
+   ```sh
+   dmesg | grep -iE "dsi|dpu|mdss|panel|ams628|imagis|i2c"
+   ls /sys/class/drm /sys/class/backlight
+   cat /proc/bus/input/devices
+   sudo kmscube -c 60     # тест freedreno на экране, Ctrl+C для выхода
+   ```
+4. Если экран остался чёрным, но SSH работает — это не страшно: пришлите `dmesg` и вернитесь на `dmb-samsung-r1q-boot.tar.md5` (этап 1).
+
+Яркость: `echo 300 | sudo tee /sys/class/backlight/*/brightness` (0–1023).
+
+## Шаг 5. Wi-Fi и Bluetooth (этап 3, экспериментально)
+
+`dmb-samsung-r1q-boot-wifi.tar.md5` = этап 2 + DSP модема (через него работает Wi-Fi WCN3990) + Bluetooth на UART3. Прошивки модема и Wi-Fi подписаны Samsung и берутся с вашего телефона командой `dmb-get-firmware` (шаг 3), а в Debian уже стоят `rmtfs`, `pd-mapper`, `tqftpserv` и `firmware-atheros`.
+
+1. Сначала в Debian: `sudo dmb-get-firmware` — он скажет, нашлись ли `modem.mbn`, `wlanmdsp.mbn` и board data для ath10k. Пришлите его вывод.
+2. Download → Odin → **AP** = `dmb-samsung-r1q-boot-wifi.tar.md5` → **Start**.
+3. После загрузки:
+   ```sh
+   cat /sys/class/remoteproc/*/name /sys/class/remoteproc/*/state
+   dmesg | grep -iE "remoteproc|mpss|modem|ath10k|wcn|qrtr|bluetooth|hci"
+   systemctl status rmtfs pd-mapper tqftpserv --no-pager
+   nmcli device wifi list
+   ```
+4. Если телефон перезагрузится через несколько секунд после старта модема — значит, карта памяти модема или rmtfs не подходит: вернитесь на `boot-dsi` и пришлите `adb pull /sys/fs/pstore` из OrangeFox.
 
 ## Вернуться на Android
 
