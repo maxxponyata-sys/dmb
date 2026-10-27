@@ -98,7 +98,7 @@ boot.img ищет Debian в `userdata`. Там пока Android, поэтому 
 2. На ПК в `platform-tools`:
    ```bat
    adb shell umount /data
-   adb push \\wsl.localhost\Ubuntu\home\maxim\dmb\work\out\samsung-r1q\rootfs.img /dev/block/bootdevice/by-name/userdata
+   adb push C:\Users\maxim\Desktop\GalaxyA80-dmb\rootfs.img /dev/block/bootdevice/by-name/userdata
    adb shell sync
    ```
    Образ 3 ГБ идёт по USB 2.0 несколько минут. **Не делайте после этого «Format Data» в OrangeFox** — это сотрёт Debian.
