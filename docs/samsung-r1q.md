@@ -35,12 +35,14 @@
 - Стоковая прошивка вашего региона (`A805F…`, например через SamFw или Frija) — путь назад.
 - Ваш OrangeFox для r1q в разделе recovery и `adb` (у вас `Desktop\platform-tools`).
 - PuTTY (уже установлен).
-- Файлы из `work/out/samsung-r1q/` после `./dmb build` (все для слота **AP** в Odin):
-  - `dmb-samsung-r1q-boot-dtbo.tar.md5` — boot.img + пустой dtbo: тест ядра, данные не трогает (шаг 1)
-  - `dmb-samsung-r1q-full.tar.md5` — boot.img + пустой dtbo + Debian в `userdata` (шаг 2, **стирает Android**)
-  - `dmb-samsung-r1q-boot.tar.md5` — только boot.img, для обновления ядра поверх установленного Debian
+- Файлы из `work/out/samsung-r1q/` после `./dmb build`:
+  - `dmb-samsung-r1q-boot.tar.md5` — Odin AP: boot.img (шаг 1, данные не трогает)
+  - `dtbo-empty.img` — пустой dtbo, пишется **из OrangeFox через adb** (шаг 1)
+  - `dmb-samsung-r1q-full.tar.md5` — Odin AP: boot.img + Debian в `userdata` (шаг 2, **стирает Android**)
   - `rootfs.img` — тот же Debian для установки через `adb` вместо Odin
-  - `restore-lineage-dtbo.tar.md5` — вернуть dtbo от LineageOS (чтобы снова грузился Android)
+  - `dtbo-lineage.img` — dtbo от LineageOS, чтобы снова грузился Android (лучше — ваша копия из OrangeFox)
+
+Download-режим Samsung даже на разблокированном загрузчике принимает неподписанный boot.img, но **не принимает неподписанный dtbo**: Odin пишет `FAIL! (Auth)`. Поэтому dtbo пишется только из recovery, как это делает LineageOS.
 
 Из WSL файлы видны в Windows по пути `\\wsl.localhost\Ubuntu\home\maxim\dmb\work\out\samsung-r1q\`.
 
@@ -65,10 +67,16 @@
 
 boot.img ищет Debian в `userdata`. Там пока Android, поэтому initramfs смотрит туда **только для чтения**, ничего не меняет и открывает отладочную консоль.
 
-Загрузчик A80 при каждой загрузке накладывает оверлей из раздела `dtbo` на DTB ядра (в его логе: `Apply Overlay`, `dtbo_idx=8`). Стоковый оверлей рассчитан на downstream-ядро и на mainline-DTB не накладывается — телефон сразу уходит в Download. Поэтому вместе с boot.img прошивается **пустой dtbo**. OrangeFox с ним работает как раньше (у recovery свой dtbo внутри образа). Android не загрузится, пока не вернёте `restore-lineage-dtbo.tar.md5` и boot из копии.
+Загрузчик A80 при каждой загрузке накладывает оверлей из раздела `dtbo` на DTB ядра (в его логе: `Apply Overlay`, `dtbo_idx=8`). Стоковый оверлей рассчитан на downstream-ядро и на mainline-DTB не накладывается — телефон сразу уходит в Download. Поэтому нужен **пустой dtbo**. OrangeFox с ним работает как раньше (у recovery свой dtbo внутри образа). Android не загрузится, пока не вернёте dtbo и boot из копии.
 
-1. Download-режим, Odin → **AP** = `dmb-samsung-r1q-boot-dtbo.tar.md5`, Options: Auto Reboot включён, Re-Partition выключен → **Start**.
-2. Телефон перезагрузится: логотип Samsung и предупреждение о разблокировке, затем на экране должны пойти строки ядра и сообщения `dmb: ...`, в конце `debug shell: ... holds no dmb rootfs`.
+1. Download-режим, Odin → **AP** = `dmb-samsung-r1q-boot.tar.md5`, Options: Auto Reboot **выключен**, Re-Partition выключен → **Start**.
+2. После `PASS` сразу в recovery: Громкость− + Питание, как только экран погаснет — Громкость+ + Питание. В OrangeFox на ПК:
+   ```bat
+   adb push C:\Users\maxim\Desktop\GalaxyA80-dmb\dtbo-empty.img /dev/block/bootdevice/by-name/dtbo
+   adb shell sync
+   adb reboot
+   ```
+3. Телефон перезагрузится: логотип Samsung и предупреждение о разблокировке, затем на экране должны пойти строки ядра и сообщения `dmb: ...`, в конце `debug shell: ... holds no dmb rootfs`.
 3. **Сфотографируйте экран** через 10 секунд и через минуту.
 4. Не отключая кабель от ПК, откройте «Диспетчер устройств»:
    - «Порты (COM и LPT)» → новый «Устройство с последовательным интерфейсом USB (COMx)»;
@@ -84,21 +92,21 @@ boot.img ищет Debian в `userdata`. Там пока Android, поэтому 
    cat /sys/class/graphics/fb0/virtual_size
    ```
    Вместо COM-порта можно PuTTY → Telnet → `172.16.42.1`.
-7. Вернуть Android: Odin → AP = `restore-lineage-dtbo.tar.md5`, затем OrangeFox → Restore → boot (из шага 0).
+7. Вернуть Android: OrangeFox → Restore → boot и dtbo (из шага 0). Без копии dtbo: `adb push C:\Users\maxim\Desktop\GalaxyA80-dmb\dtbo-lineage.img /dev/block/bootdevice/by-name/dtbo`.
 
 ### Если что-то пошло не так
 
 | Что видно | Что делать |
 |---|---|
-| Сразу снова Download, хотя прошит boot-dtbo | Сфотографируйте экран Download. Затем прошейте `dmb-test-lineage-kernel.tar.md5` (ядро LineageOS + dmb initramfs): если и он уходит в Download, виновата упаковка boot.img, если нет — mainline-ядро или DTB. |
+| Сразу снова Download, хотя записаны boot и пустой dtbo | Сфотографируйте экран Download. Затем прошейте `dmb-test-lineage-kernel.tar.md5` (ядро LineageOS + dmb initramfs): если и он уходит в Download, виновата упаковка boot.img, если нет — mainline-ядро или DTB. |
 | Чёрный экран, телефон висит | Подождите минуту, принудительно перезагрузитесь **сразу в recovery**. В OrangeFox через ПК: `adb pull /sys/fs/pstore C:\Users\maxim\Desktop\a80-pstore` и пришлите папку: там лог ядра с прошлой загрузки. |
 | Экран со строками, но COM-порта нет | Сфотографируйте экран: строки `dmb:` покажут, на каком шаге застряло. |
 
 ## Шаг 2. Установка Debian (стирает Android)
 
-Только после удачного шага 1. Два способа, результат одинаковый.
+Только после удачного шага 1 (пустой dtbo уже стоит). Два способа, результат одинаковый.
 
-**Через Odin (проще).** Download-режим, Odin → **AP** = `dmb-samsung-r1q-full.tar.md5` (≈500 МБ), Auto Reboot включён, Re-Partition выключен → **Start**. Внутри boot.img, пустой dtbo и `userdata.img.lz4`: Debian в формате Android sparse, как Samsung поставляет `userdata` в стоковых прошивках. Odin запишет его поверх раздела `userdata`, после перезагрузки сразу стартует Debian.
+**Через Odin (проще).** Download-режим, Odin → **AP** = `dmb-samsung-r1q-full.tar.md5` (≈500 МБ), Auto Reboot включён, Re-Partition выключен → **Start**. Внутри boot.img и `userdata.img.ext4.lz4`: Debian в формате Android sparse, как Samsung поставляет `userdata` в стоковых прошивках. Odin запишет его поверх раздела `userdata`, после перезагрузки сразу стартует Debian. Если Odin и на нём напишет `FAIL! (Auth)` — используйте второй способ.
 
 **Через OrangeFox и adb.**
 
