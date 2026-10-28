@@ -18,7 +18,7 @@ covered in [docs/porting.md](docs/porting.md).
 
 | Device | Folder | SoC | Kernel | Status |
 |---|---|---|---|---|
-| Samsung Galaxy A80 (SM-A805F) | `samsung-r1q` | SM7150 (Snapdragon 730G) | Linux 7.1 (sm7150-mainline) | Stage 1 (boot, UFS, USB, GPU), stage 2 (DSI panel, touchscreen) and stage 3 (modem DSP, Wi-Fi, Bluetooth) built, not yet tested on hardware. See [docs/samsung-r1q.md](docs/samsung-r1q.md) (in Russian) |
+| Samsung Galaxy A80 (SM-A805F) | `samsung-r1q` | SM7150 (Snapdragon 730G) | Linux 7.1 (sm7150-mainline) | Stage 1 works on hardware: Debian 13 boots from UFS, USB serial console and USB networking, Adreno 618 with freedreno (OpenGL 4.6/ES 3.2) and turnip (Vulkan). Stage 2 (DSI panel, touchscreen) and stage 3 (modem DSP, Wi-Fi, Bluetooth) built, not yet tested. See [docs/samsung-r1q.md](docs/samsung-r1q.md) (in Russian) |
 
 ## Requirements
 
