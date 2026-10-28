@@ -61,9 +61,14 @@
 
 		vddio-supply = <&vreg_l13a_1p8>;
 		reset-gpios = <&tlmm 11 GPIO_ACTIVE_LOW>;
-		enable-gpios = <&tlmm 69 GPIO_ACTIVE_HIGH>;
+		/*
+		 * The stock enable line is TLMM 69, inside the 63-90 range still
+		 * reserved as TrustZone-owned. The bootloader leaves the panel
+		 * powered, so leave it alone until 69 is known to be free:
+		 * enable-gpios = <&tlmm 69 GPIO_ACTIVE_HIGH>;
+		 */
 
-		pinctrl-0 = <&panel_reset_n &panel_en &mdp_vsync_p>;
+		pinctrl-0 = <&panel_reset_n &mdp_vsync_p>;
 		pinctrl-names = "default";
 
 		port {
@@ -104,12 +109,5 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
-	};
-
-	panel_en: panel-en-state {
-		pins = "gpio69";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
 	};
 };
