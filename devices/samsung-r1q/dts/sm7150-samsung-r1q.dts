@@ -54,6 +54,8 @@
 	 */
 	qcom,msm-id = <365 0>;		/* QCOM_ID_SM7150 */
 	qcom,board-id = <0 0>;
+	qcom,msm-name = "SDMMAGPIE";
+	qcom,pmic-name = "PM6150";
 
 	chosen {
 		#address-cells = <2>;

@@ -28,6 +28,10 @@ kernel_add_dts() {
 		*.dts)
 			grep -q "${name%.dts}.dtb" "$dtsdir/Makefile" ||
 				echo "dtb-\$(CONFIG_ARCH_QCOM) += ${name%.dts}.dtb" >> "$dtsdir/Makefile"
+			# Keep labels in /__symbols__: bootloaders that apply a dtbo
+			# overlay (Qualcomm ABL via libufdt) refuse a base DTB without it
+			grep -q "DTC_FLAGS_${name%.dts} " "$dtsdir/Makefile" ||
+				echo "DTC_FLAGS_${name%.dts} := -@" >> "$dtsdir/Makefile"
 			;;
 		esac
 	done
