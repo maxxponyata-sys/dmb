@@ -1,0 +1,28 @@
+diff --git a/drivers/watchdog/qcom-wdt.c b/drivers/watchdog/qcom-wdt.c
+--- a/drivers/watchdog/qcom-wdt.c
++++ b/drivers/watchdog/qcom-wdt.c
+@@ -344,7 +344,23 @@
+ 		.pm		= &qcom_wdt_pm_ops,
+ 	},
+ };
+-module_platform_driver(qcom_watchdog_driver);
++/*
++ * Bootloaders (Samsung's ABL among them) can leave this watchdog running.
++ * Register early, right after the DT devices exist, so the running
++ * watchdog is taken over and petted before the rest of the boot, which
++ * can take long on a slow framebuffer console.
++ */
++static int __init qcom_wdt_init(void)
++{
++	return platform_driver_register(&qcom_watchdog_driver);
++}
++subsys_initcall(qcom_wdt_init);
++
++static void __exit qcom_wdt_exit(void)
++{
++	platform_driver_unregister(&qcom_watchdog_driver);
++}
++module_exit(qcom_wdt_exit);
+ 
+ MODULE_DESCRIPTION("QCOM KPSS Watchdog Driver");
+ MODULE_LICENSE("GPL v2");
