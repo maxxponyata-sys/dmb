@@ -73,12 +73,15 @@ boot.img ищет Debian в `userdata`. Там пока Android, поэтому 
 Загрузчик A80 при каждой загрузке накладывает оверлей из раздела `dtbo` на DTB ядра (в его логе: `Apply Overlay`, `dtbo_idx=8`). Стоковый оверлей рассчитан на downstream-ядро и на mainline-DTB не накладывается — телефон сразу уходит в Download. Поэтому нужен **пустой dtbo**. OrangeFox с ним работает как раньше (у recovery свой dtbo внутри образа). Android не загрузится, пока не вернёте dtbo и boot из копии.
 
 1. Download-режим, Odin → **AP** = `dmb-samsung-r1q-boot.tar.md5`, Options: Auto Reboot **выключен**, Re-Partition выключен → **Start**.
-2. После `PASS` сразу в recovery: Громкость− + Питание, как только экран погаснет — Громкость+ + Питание. В OrangeFox на ПК:
+2. После `PASS` сразу в recovery: Громкость− + Питание, как только экран погаснет — Громкость+ + Питание. В OrangeFox на ПК, по одной строке:
    ```bat
-   adb push C:\Users\maxim\Desktop\GalaxyA80-dmb\dtbo-empty.img /dev/block/bootdevice/by-name/dtbo
-   adb shell sync
+   adb pull /dev/block/bootdevice/by-name/dtbo C:\Users\maxim\Desktop\GalaxyA80-dmb\dtbo-backup.img
+   adb push C:\Users\maxim\Desktop\GalaxyA80-dmb\dtbo-empty.img /tmp/dtbo-empty.img
+   adb shell "dd if=/tmp/dtbo-empty.img of=/dev/block/bootdevice/by-name/dtbo conv=fsync"
+   adb shell "dd if=/dev/block/bootdevice/by-name/dtbo bs=2583 count=1 | md5sum"
    adb reboot
    ```
+   Первая строка — копия текущего dtbo. **`adb push` прямо в `/dev/block/...` в OrangeFox ничего не записывает**, хотя пишет `1 file pushed` (проверено на A80), поэтому файл кладётся в `/tmp` и пишется через `dd`. Предпоследняя строка должна вывести `de407eb290d363da2999d26cdacc4d29`; если сумма другая — не перезагружайтесь, пришлите вывод.
 3. Телефон перезагрузится: логотип Samsung и предупреждение о разблокировке, затем на экране должны пойти строки ядра и сообщения `dmb: ...`, в конце `debug shell: ... holds no dmb rootfs`.
 3. **Сфотографируйте экран** через 10 секунд и через минуту.
 4. Не отключая кабель от ПК, откройте «Диспетчер устройств»:
@@ -95,7 +98,11 @@ boot.img ищет Debian в `userdata`. Там пока Android, поэтому 
    cat /sys/class/graphics/fb0/virtual_size
    ```
    Вместо COM-порта можно PuTTY → Telnet → `172.16.42.1`.
-7. Вернуть Android: OrangeFox → Restore → boot и dtbo (из шага 0). Без копии dtbo: `adb push C:\Users\maxim\Desktop\GalaxyA80-dmb\dtbo-lineage.img /dev/block/bootdevice/by-name/dtbo`.
+7. Вернуть Android: OrangeFox → Restore → boot (из шага 0), а dtbo так же через `/tmp`:
+   ```bat
+   adb push C:\Users\maxim\Desktop\GalaxyA80-dmb\dtbo-backup.img /tmp/dtbo-backup.img
+   adb shell "dd if=/tmp/dtbo-backup.img of=/dev/block/bootdevice/by-name/dtbo conv=fsync"
+   ```
 
 ### Если что-то пошло не так
 
@@ -114,13 +121,13 @@ boot.img ищет Debian в `userdata`. Там пока Android, поэтому 
 **Через OrangeFox и adb.**
 
 1. Recovery (OrangeFox). Если OrangeFox спросит пароль — нажмите «Отмена».
-2. На ПК в `platform-tools`:
+2. На ПК (в обычной командной строке `cmd`, не PowerShell: нужен перенаправленный ввод `<`):
    ```bat
    adb shell umount /data
-   adb push C:\Users\maxim\Desktop\GalaxyA80-dmb\rootfs.img /dev/block/bootdevice/by-name/userdata
+   adb exec-in dd of=/dev/block/bootdevice/by-name/userdata bs=4M < C:\Users\maxim\Desktop\GalaxyA80-dmb\rootfs.img
    adb shell sync
    ```
-   Образ 3 ГБ идёт по USB 2.0 несколько минут. **Не делайте после этого «Format Data» в OrangeFox** — это сотрёт Debian.
+   `adb exec-in` передаёт образ прямо в `dd` на телефоне (`adb push` в блочное устройство в OrangeFox не работает, а 3 ГБ не помещаются в `/tmp`). Образ идёт по USB 2.0 несколько минут. **Не делайте после этого «Format Data» в OrangeFox** — это сотрёт Debian.
 3. Перезагрузите в систему (boot.img из шага 1 должен стоять). При первом запуске файловая система растянется на весь раздел.
 4. На ПК: `ssh user@172.16.42.1`, пароль `147147` (поменяйте: `passwd`). Или PuTTY на COM-порт — там будет обычный вход Debian.
 
