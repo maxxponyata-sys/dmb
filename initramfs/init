@@ -106,6 +106,19 @@ debug_shell() {
 
 say "initramfs for $DEVICE, kernel $(uname -r)"
 
+# Bring-up beacon for a phone with no working screen or USB yet:
+# dmb.beacon=poweroff[-SECONDS] powers the phone off (after SECONDS), so a
+# phone that stays off proves the kernel got this far
+beacon="$(cmdline_get dmb.beacon || true)"
+case "$beacon" in
+poweroff*)
+	delay="${beacon#poweroff}"
+	[ -n "${delay#-}" ] && sleep "${delay#-}"
+	say "beacon: powering off"
+	poweroff -f
+	;;
+esac
+
 cmdline_get dmb.debug >/dev/null && debug_shell "requested by dmb.debug"
 
 label="$(cmdline_get dmb.root || echo "$ROOT_PARTLABEL")"
