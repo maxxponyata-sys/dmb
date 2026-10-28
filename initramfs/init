@@ -119,6 +119,19 @@ poweroff*)
 	;;
 esac
 
+# dmb.heartbeat: print uptime and watchdog state every 2 seconds, to see
+# how long the kernel lives and whether a watchdog driver took over
+if cmdline_get dmb.heartbeat >/dev/null; then
+	say "$(dmesg | grep -i -E 'wdt|watchdog' | tail -n 3)"
+	(
+		while true; do
+			w=/sys/class/watchdog/watchdog0
+			say "up $(cut -d. -f1 /proc/uptime)s wdt=$(cat $w/state 2>/dev/null || ls /dev/watchdog* 2>/dev/null || echo none) timeout=$(cat $w/timeout 2>/dev/null)"
+			sleep 2
+		done
+	) &
+fi
+
 cmdline_get dmb.debug >/dev/null && debug_shell "requested by dmb.debug"
 
 label="$(cmdline_get dmb.root || echo "$ROOT_PARTLABEL")"
