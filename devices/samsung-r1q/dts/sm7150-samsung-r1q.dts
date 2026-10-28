@@ -562,8 +562,13 @@
 };
 
 &tlmm {
-	/* Secure (TrustZone) pins, same as the other SM7150 phones */
-	gpio-reserved-ranges = <59 4>;
+	/*
+	 * Pins TrustZone owns on r1q; reading them (pinctrl does at probe)
+	 * resets the phone. Found by bisection on the phone: 0-3 (eSE on
+	 * SPI1), 59-62 (fingerprint SPI, as on the other SM7150 phones) and
+	 * a pin in 63-90, kept reserved as a whole until it is narrowed down.
+	 */
+	gpio-reserved-ranges = <0 4>, <59 32>;
 };
 
 &ufs_mem_hc {
