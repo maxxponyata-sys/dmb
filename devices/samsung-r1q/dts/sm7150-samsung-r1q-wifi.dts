@@ -53,7 +53,15 @@
 	status = "okay";
 };
 
-/* UART3 sits on QUPv3 wrapper 0, enabled by the -dsi DTS for i2c7 */
+/* UART3 (Bluetooth) sits on QUPv3 wrapper 0 */
+&gpi_dma0 {
+	status = "okay";
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
 &qup_uart3_cts {
 	bias-pull-down;
 };
