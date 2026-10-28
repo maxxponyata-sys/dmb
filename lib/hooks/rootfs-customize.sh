@@ -36,4 +36,33 @@ systemctl disable systemd-networkd-wait-online.service
 mkdir -p /etc/NetworkManager/conf.d
 printf '[keyfile]\nunmanaged-devices=interface-name:usb0\n' > /etc/NetworkManager/conf.d/dmb-usb0.conf
 
+if [ "$DMB_UI" = xfce ]; then
+	# Log straight into XFCE
+	grep -q '^autologin:' /etc/group || groupadd -r autologin
+	usermod -aG autologin "$DMB_USER"
+	mkdir -p /etc/lightdm/lightdm.conf.d
+	printf '[Seat:*]\nautologin-user=%s\nautologin-session=xfce\n' "$DMB_USER" \
+		> /etc/lightdm/lightdm.conf.d/50-dmb-autologin.conf
+	systemctl set-default graphical.target
+	# Phone screens are dense: scale GTK 2x, matching window decorations
+	x=/etc/xdg/xfce4/xfconf/xfce-perchannel-xml
+	mkdir -p $x
+	cat > $x/xsettings.xml <<-'EOF'
+	<?xml version="1.0" encoding="UTF-8"?>
+	<channel name="xsettings" version="1.0">
+	  <property name="Gdk" type="empty">
+	    <property name="WindowScalingFactor" type="int" value="2"/>
+	  </property>
+	</channel>
+	EOF
+	cat > $x/xfwm4.xml <<-'EOF'
+	<?xml version="1.0" encoding="UTF-8"?>
+	<channel name="xfwm4" version="1.0">
+	  <property name="general" type="empty">
+	    <property name="theme" type="string" value="Default-xhdpi"/>
+	  </property>
+	</channel>
+	EOF
+fi
+
 echo "dmb $DMB_DEVICE $(date -u +%Y-%m-%d)" > /etc/dmb-release

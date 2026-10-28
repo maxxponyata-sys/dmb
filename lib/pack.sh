@@ -42,6 +42,9 @@ cmd_pack() {
 			local name="${DEVICE_ODIN_ROOTFS_NAME:-$DEVICE_ROOT_PARTLABEL.img.ext4}"
 			lz4 -q -f -B6 --content-size "$OUT/odin-src/rootfs.simg" "$OUT/odin-src/$name.lz4"
 			rm "$OUT/odin-src/rootfs.simg"
+			# DEVICE_INSTALL_VARIANT picks the boot image the installer ships
+			local iv="${DEVICE_INSTALL_VARIANT:-}"
+			cp "$OUT/boot${iv:+-$iv}.img" "$OUT/odin-src/boot.img"
 			odin_tar "dmb-$DEVICE-install" boot.img "$name.lz4"
 		fi
 		rm -rf "$OUT/odin-src"

@@ -8,12 +8,21 @@ rootfs_packages() {
 		systemd-timesyncd e2fsprogs usbutils pciutils htop bash-completion
 		network-manager wpasupplicant rfkill firmware-qcom-soc
 		mesa-utils mesa-utils-bin libgl1-mesa-dri libegl-mesa0 mesa-vulkan-drivers
-		vulkan-tools"
+		vulkan-tools fastfetch"
 	case "$UI" in
 	console) ;;
 	phosh) p="$p phosh-full" ;;
 	weston) p="$p weston" ;;
-	*) die "unknown UI '$UI' (console, phosh, weston)" ;;
+	xfce)
+		# X11 on the modesetting driver (glamor = freedreno/turnip-backed GL),
+		# autologin through LightDM, on-screen keyboard for a phone
+		p="$p xserver-xorg-core xserver-xorg-input-libinput x11-xserver-utils
+			lightdm lightdm-gtk-greeter dbus-x11 xfce4 xfce4-terminal
+			xfce4-whiskermenu-plugin xfce4-taskmanager mousepad ristretto
+			network-manager-gnome onboard fonts-dejavu fonts-noto-core
+			firefox-esr firefox-esr-l10n-ru"
+		;;
+	*) die "unknown UI '$UI' (console, phosh, weston, xfce)" ;;
 	esac
 	echo "$p $DEVICE_PACKAGES" | tr -s ' \t\n' ','
 }
@@ -72,7 +81,7 @@ cmd_rootfs() {
 	)
 
 	log "building Debian $DEBIAN_SUITE ($DEVICE_DEBIAN_ARCH, ui=$UI, mode=$mode)"
-	DMB_DEVICE="$DEVICE" DMB_USER="$USERNAME" DMB_PASSWORD="$PASSWORD" \
+	DMB_DEVICE="$DEVICE" DMB_USER="$USERNAME" DMB_PASSWORD="$PASSWORD" DMB_UI="$UI" \
 	DMB_HOSTNAME="$HOSTNAME_" DMB_ROOT_PARTLABEL="$DEVICE_ROOT_PARTLABEL" \
 	PATH="$DMB_WORK/tools/arch-test/usr/bin:$PATH" \
 	perl "$mm" \
