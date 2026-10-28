@@ -28,6 +28,13 @@ CONFIG_USB_DWC3_DUAL_ROLE=y
 CONFIG_USB_DWC3_QCOM=y
 CONFIG_PHY_QCOM_QUSB2=y
 CONFIG_PHY_QCOM_QMP_COMBO=y
+# Qualcomm bootloaders can leave the APSS watchdog running; the driver must
+# be built in so the kernel keeps petting it before any module can load
+# (WATCHDOG_HANDLE_BOOT_ENABLED), or the phone resets after ~10 seconds
+CONFIG_WATCHDOG=y
+CONFIG_WATCHDOG_CORE=y
+CONFIG_WATCHDOG_HANDLE_BOOT_ENABLED=y
+CONFIG_QCOM_WDT=y
 # Keep the last kernel log across a reboot (read it from /sys/fs/pstore)
 CONFIG_PSTORE=y
 CONFIG_PSTORE_CONSOLE=y
