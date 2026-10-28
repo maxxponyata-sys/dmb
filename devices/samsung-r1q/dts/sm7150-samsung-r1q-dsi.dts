@@ -21,16 +21,19 @@
 	status = "okay";
 };
 
-/* i2c7 (QUP SE7, touchscreen) sits on QUPv3 wrapper 1 and uses its GPI DMA */
-&gpi_dma1 {
-	status = "okay";
-};
-
+/* i2c7 (QUP SE7, touchscreen) sits on QUPv3 wrapper 1 */
 &qupv3_id_1 {
 	status = "okay";
 };
 
 &i2c7 {
+	/*
+	 * A transfer through GPI DMA (gpi_dma1) resets the phone at once,
+	 * even a bare chip-ID read from userspace; use the SE FIFO instead.
+	 */
+	/delete-property/ dmas;
+	/delete-property/ dma-names;
+
 	clock-frequency = <400000>;
 	status = "okay";
 
