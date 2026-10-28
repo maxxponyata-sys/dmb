@@ -15,10 +15,14 @@ bootimg_one() {
 		kernel="$OUT/kernel-dtb"
 	fi
 
+	# Per-variant extra arguments: DEVICE_CMDLINE_base for boot.img,
+	# DEVICE_CMDLINE_<variant> for boot-<variant>.img
+	local extra="DEVICE_CMDLINE_${variant:-base}"
+	extra="${extra//-/_}"
 	args=(
 		--kernel "$kernel"
 		--ramdisk "$OUT/initramfs.cpio.gz"
-		--cmdline "$DEVICE_CMDLINE"
+		--cmdline "$DEVICE_CMDLINE${!extra:+ ${!extra}}"
 		--base "$DEVICE_BOOTIMG_BASE"
 		--kernel_offset "$DEVICE_BOOTIMG_KERNEL_OFFSET"
 		--ramdisk_offset "$DEVICE_BOOTIMG_RAMDISK_OFFSET"
