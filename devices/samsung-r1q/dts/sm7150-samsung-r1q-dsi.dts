@@ -15,44 +15,46 @@
 
 / {
 	model = "Samsung Galaxy A80 (display)";
+
+	/*
+	 * The touchscreen is wired to QUP SE7 (i2c7, TLMM 6 SDA / 7 SCL),
+	 * but any transfer on that serial engine, through GPI DMA or its
+	 * FIFO, resets the phone at once (a bare chip-ID read from userspace
+	 * is enough). Bit-bang the same two lines instead.
+	 */
+	i2c-touch {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 7 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>;	/* about 250 kHz */
+
+		pinctrl-0 = <&ts_i2c_gpio>;
+		pinctrl-names = "default";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Stock: imagis,ist40xx-ts, AVDD from L18A, IRQ on TLMM 9 */
+		touchscreen@50 {
+			compatible = "imagis,ist4050";
+			reg = <0x50>;
+
+			interrupts-extended = <&tlmm 9 IRQ_TYPE_EDGE_FALLING>;
+
+			vdd-supply = <&vreg_l18a_3p0>;
+			vddio-supply = <&vreg_l13a_1p8>;
+
+			touchscreen-size-x = <1080>;
+			touchscreen-size-y = <2400>;
+
+			pinctrl-0 = <&ts_int_n>;
+			pinctrl-names = "default";
+		};
+	};
 };
 
 &dispcc {
 	status = "okay";
-};
-
-/* i2c7 (QUP SE7, touchscreen) sits on QUPv3 wrapper 1 */
-&qupv3_id_1 {
-	status = "okay";
-};
-
-&i2c7 {
-	/*
-	 * A transfer through GPI DMA (gpi_dma1) resets the phone at once,
-	 * even a bare chip-ID read from userspace; use the SE FIFO instead.
-	 */
-	/delete-property/ dmas;
-	/delete-property/ dma-names;
-
-	clock-frequency = <400000>;
-	status = "okay";
-
-	/* Stock: imagis,ist40xx-ts, AVDD from L18A, IRQ on TLMM 9 */
-	touchscreen@50 {
-		compatible = "imagis,ist4050";
-		reg = <0x50>;
-
-		interrupts-extended = <&tlmm 9 IRQ_TYPE_EDGE_FALLING>;
-
-		vdd-supply = <&vreg_l18a_3p0>;
-		vddio-supply = <&vreg_l13a_1p8>;
-
-		touchscreen-size-x = <1080>;
-		touchscreen-size-y = <2400>;
-
-		pinctrl-0 = <&ts_int_n>;
-		pinctrl-names = "default";
-	};
 };
 
 &mdss {
@@ -116,6 +118,13 @@
 		pins = "gpio9";
 		function = "gpio";
 		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	ts_i2c_gpio: ts-i2c-gpio-state {
+		pins = "gpio6", "gpio7";
+		function = "gpio";
+		drive-strength = <2>;
 		bias-pull-up;
 	};
 };
